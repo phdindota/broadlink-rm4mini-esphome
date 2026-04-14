@@ -46,7 +46,7 @@ Extracted from stock firmware boot log:
 
 ### 1. Open the case
 
-Break it with a hammer (don't). really hard to open beware!
+Peel the rubber pad on the bottom to reveal screws. Remove screws and separate the case.
 
 ### 2. Connect UART
 
@@ -106,7 +106,40 @@ ESPHome's built-in `remote_transmitter` component uses software bit-banging for 
 
 The included `ir_tx.h` uses hardware PWM via `analogWrite()` instead, which runs in the background without blocking the CPU.
 
-### Usage in YAML
+### Capturing IR Codes
+
+1. The YAML already includes `remote_receiver` with `dump: all`
+2. Watch ESPHome logs: `esphome logs rm4mini.yaml --device broadlink-rm4mini.local`
+3. Point any IR remote at the RM4 Mini and press buttons
+4. Copy the raw/NEC/Pronto codes from the log output
+5. Use them with the `ir_tx.h` functions below
+
+### Sending Raw Codes
+
+Use raw timing arrays captured from `remote_receiver` logs. Values are in microseconds — positive for mark (IR on), negative for space (IR off). Uses `int32_t` to support long repeat gaps (e.g. -39712).
+
+```yaml
+button:
+  - platform: template
+    name: "Yamaha Volume Up"
+    on_press:
+      - lambda: |-
+          static const int32_t code[] = {
+            9042, -4430, 624, -500, 620, -1618, 624, -498, 624, -1616,
+            624, -1616, 624, -1618, 624, -1616, 624, -500, 622, -1616,
+            624, -500, 620, -1618, 624, -498, 624, -498, 622, -498,
+            622, -498, 622, -1618, 624, -498, 622, -1618, 624, -498,
+            622, -1618, 624, -1616, 624, -498, 622, -500, 622, -498,
+            622, -1618, 622, -500, 622, -1616, 626, -498, 622, -498,
+            622, -1618, 624, -1616, 624, -1618, 624, -39712, 9018,
+            -2190, 622
+          };
+          ir_send_raw(code, sizeof(code) / sizeof(code[0]));
+```
+
+### Sending NEC Codes
+
+For devices using the NEC protocol, pass the address and command directly:
 
 ```yaml
 button:
@@ -114,32 +147,21 @@ button:
     name: "TV Power"
     on_press:
       - lambda: |-
-          # NEC protocol
           ir_send_nec(0x04, 0x08);
-
-  - platform: template
-    name: "Send Pronto"
-    on_press:
-      - lambda: |-
-          # Pronto hex (captured from remote_receiver logs)
-          ir_send_raw_pronto("0000 006D 0022 0000 015A 00AD ...");
-
-  - platform: template
-    name: "Send Raw"
-    on_press:
-      - lambda: |-
-          # Raw timings in microseconds (positive=mark, negative=space)
-          static const int16_t code[] = {9000, -4500, 560, -560, 560, -1690, ...};
-          ir_send_raw(code, sizeof(code) / sizeof(code[0]));
 ```
 
-### Capturing IR Codes
+### Sending Pronto Codes
 
-1. Add `remote_receiver` with `dump: all` (already in the YAML)
-2. Watch ESPHome logs: `esphome logs rm4mini.yaml --device broadlink-rm4mini.local`
-3. Point any IR remote at the RM4 Mini and press buttons
-4. Copy the Pronto/NEC/raw codes from the log output
-5. Use them with the `ir_tx.h` functions
+Pronto hex codes can be sent as a string. These are often found in device databases and remote control forums:
+
+```yaml
+button:
+  - platform: template
+    name: "AC Power"
+    on_press:
+      - lambda: |-
+          ir_send_raw_pronto("0000 006D 0022 0000 015A 00AD 0016 0015 ...");
+```
 
 ## Stock Firmware Boot Log (Reference)
 
@@ -170,7 +192,7 @@ ROM Version: v3.0
 
 ## Known Limitations
 
-- **IR TX** uses a custom PWM implementation because ESPHome's `remote_transmitter` crashes the MCU
+- **IR TX** uses a custom PWM implementation (`ir_tx.h`) because ESPHome's `remote_transmitter` crashes the MCU
 - **SHT30 sensor** — stock firmware shows soft I2C temperature/humidity support, but the I2C pins haven't been mapped yet
 - **ESPHome dashboard** may show "unknown board" warnings (cosmetic only)
 

@@ -6,11 +6,17 @@
 // software bit-bang carrier generation hitting the watchdog on
 // the 100MHz Cortex-M33. This uses analogWrite() for the 38kHz
 // carrier instead.
+//
+// Available functions:
+//   ir_send_raw(timings, count)        - Send raw timing array (int32_t)
+//   ir_send_nec(address, command)      - Send NEC protocol
+//   ir_send_raw_pronto(pronto_string)  - Send Pronto hex code
 
 #define IR_TX_PIN 4
 
 // Send raw timing array (positive = mark in us, negative = space in us)
-static void ir_send_raw(const int16_t* timings, size_t count) {
+// Uses int32_t to support long gaps in repeat codes (e.g. -39712)
+static void ir_send_raw(const int32_t* timings, size_t count) {
   analogWriteFrequency(38000);
   for (size_t i = 0; i < count; i++) {
     if (timings[i] > 0) {
