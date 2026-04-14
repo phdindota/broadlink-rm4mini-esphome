@@ -46,7 +46,7 @@ Extracted from stock firmware boot log:
 
 ### 1. Open the case
 
-Peel the rubber pad on the bottom to reveal screws. Remove screws and separate the case.
+Break it with a hammer (don't). really hard to open beware!
 
 ### 2. Connect UART
 
