@@ -1,0 +1,89 @@
+esphome:
+  name: broadlink-rm4mini
+  friendly_name: Broadlink RM4 Mini
+  includes:
+    - ir_tx.h
+  platformio_options:
+    extra_scripts:
+      - pre:patch_libretiny.py
+
+rtl87xx:
+  board: generic-rtl8720cf-2mb-992k
+  family: rtl8720c
+
+logger:
+  level: DEBUG
+  baud_rate: 0
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  platform: esphome
+
+# --- Status LED (PA7) ---
+status_led:
+  pin:
+    number: 7
+    inverted: true
+
+# --- Physical Button (PA19) ---
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 19
+      inverted: true
+      mode: INPUT_PULLUP
+    name: "Button"
+
+# --- IR Receiver (PA18) ---
+# Dumps all received IR codes to logs
+# Point any remote at the RM4 Mini and check logs to capture codes
+remote_receiver:
+  pin:
+    number: 18
+  dump: all
+  buffer_size: 2048
+  filter: 200us
+  idle: 25ms
+
+# --- IR Transmitter (PA4) ---
+# NOTE: ESPHome's built-in remote_transmitter crashes the RTL8720CF.
+# Use the custom ir_tx.h functions via lambda instead.
+#
+# Available functions:
+#   ir_send_raw(timings, count)        - Send raw timing array (int32_t)
+#   ir_send_nec(address, command)      - Send NEC protocol
+#   ir_send_raw_pronto(pronto_string)  - Send Pronto hex code
+#
+# To capture codes: watch ESPHome logs while pressing buttons on
+# any remote pointed at the RM4 Mini. Copy the raw/NEC/Pronto
+# output and use it in a lambda below.
+
+# --- Example buttons ---
+# Uncomment and modify with your own captured codes:
+#
+# button:
+#   - platform: template
+#     name: "TV Power (NEC)"
+#     on_press:
+#       - lambda: |-
+#           ir_send_nec(0x04, 0x08);
+#
+#   - platform: template
+#     name: "TV Power (Raw)"
+#     on_press:
+#       - lambda: |-
+#           static const int32_t code[] = {9042, -4464, 595, -530, ...};
+#           ir_send_raw(code, sizeof(code) / sizeof(code[0]));
+#
+#   - platform: template
+#     name: "TV Power (Pronto)"
+#     on_press:
+#       - lambda: |-
+#           ir_send_raw_pronto("0000 006D 0022 0000 ...");
